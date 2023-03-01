@@ -1,9 +1,9 @@
 #importonce
 
 .const cursor_x = $03
-.const cursor_y = $04
+.const cursor_y = $04 // unused
 
-.const rowptr = $05
+.const rowptr = $05   // cursor screen pointer incremented by rowsize
 
 /*** KEYBOARD DRIVER. DO NOT CHANGE ***/
 

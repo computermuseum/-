@@ -97,6 +97,7 @@ init:
 
 	cli
 
+	// initialise zeropage memory
 	lda #0
 	sta cursor_x
 	sta cursor_y
@@ -110,8 +111,8 @@ main:
 	jsr Keyboard
 	bcs !done+
 
-	cmp #$ff
-	beq !done+
+	cmp #$ff         // Keyboard returns ff if special key
+	beq !done+       // we don't parse special keys, go to end
 
 	// mask higher bits just in case to prevent out of bounds access
 	and #$3f
@@ -126,36 +127,66 @@ main:
 	jmp main
 
 !consonant:
+	// if key == 'k'
+	cpx #$0b
+	bne !+
+	inc $d020 // debug statement
+	jmp kconsonant
+!:
+	// key != 'k'
 	lda tbl_consonant, x
-	beq !erase+
+	beq !done+
 
+	// print ka,ki,ku,ke,ko
 	jsr putchar
 	jmp main
-
-	//inc $d020
 
 !done:
 	jmp main
 
+	// remove character and move back cursor. wraps around
 !erase:
 	ldy cursor_x
 	dey
-	bpl !+
-	ldy #40 - 1
+	bpl !+           // check if --cursor_x >= 0
+	ldy #40 - 1      // cursor_x is negative, wrap around
 !:
 	lda #0
-	sta (rowptr),y
+	sta (rowptr),y   // store 0 at screen position
 
-	sty cursor_x
+	sty cursor_x     // update cursor_x
 	jmp main
 
 	rts
 
-putchar:
-	ldy cursor_x
-	sta (rowptr),y
+kconsonant:
+	// doesnt work yet as the key is still being pressed
+	// maybe the carry set and A value can be used as in kbd.asm
+	jsr Keyboard
+	bcs !done+
 
-	iny
+	cmp #$ff         // Keyboard returns ff if special key
+	beq !done+       // we don't parse special keys, go to end
+
+	// mask higher bits just in case to prevent out of bounds access
+	and #$3f
+	cmp #$1f
+
+	tax
+	lda tbl_kcons, x
+
+	inc $d020
+
+	bne !done+
+	jsr putchar
+!done:
+	jmp main
+
+putchar:
+	ldy cursor_x     // load offset cursor_x
+	sta (rowptr),y   // mem[*rowptr + cursor_x] = a
+
+	iny              // if (++cursor_x >= 40) cursor_x = 0
 	cpy #40
 	bmi !+
 	ldy #0
@@ -167,6 +198,8 @@ irq_dummy:
 	asl $d019 // acknowledge interrupt
 	rti
 
+// lookup table for keyboard codes to character rom codes
+// zero means unused/invalid
 tbl_aieuo:
 	.byte 0, $8f, 0, 0, 0, $bf, 0, 0
 	.byte 0, $9f, 0, 0, 0, 0, 0, $cf
@@ -177,17 +210,26 @@ tbl_aieuo:
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
 
+// first letters of syllables starting with consonant:
+//   k s t n h m y r w n
+
+// alphabetic:
+//   h k m n r s t w y
 tbl_consonant:
-	// first letters of syllables starting with consonant:
-	//   k s t n h m y r w n
-
-	// alphabetic:
-	//   h k m n r s t w y
-
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
 	.byte $8a, 0, 0, $8e, 0, $89, $8b, 0
 	.byte 0, 0, $87, $8d, $8c, 0, 0, $86
 	.byte 0, $88, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+
+tbl_kcons:
+	.byte 0, $8e, 0, 0, 0, $be, 0, 0
+	.byte 0, $9e, 0, 0, 0, 0, 0, $ce
+	.byte 0, 0, 0, 0, 0, $ae, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
