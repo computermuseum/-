@@ -62,12 +62,30 @@ start:
 main:
 	jsr Keyboard
 	bcs !done+
-	lda #$a9
-	inc $0400
+
+	cmp #$ff
+	beq !done+
+
+	// mask higher bits just in case to prevent out of bounds access
+	and #$3f
+	tax
+	lda convert, x // a = convert[x]
+	sta $0400      // poke to screen
+
 !done:
 	jmp main
 
 	rts
+
+convert:
+	.byte 0, $8f, 0, 0, 0, $bf, 0, 0
+	.byte 0, $9f, 0, 0, 0, 0, 0, $cf
+	.byte 0, 0, 0, 0, 0, $af, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
 
 .pc = * "keyboard driver"
 
