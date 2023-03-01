@@ -1,5 +1,9 @@
 BasicUpstart2(start)
 
+#import "zeropage.inc"
+
+.const screen = $0400
+
 start:
 	// set to 25 line text mode and turn on the screen
 	lda #$1B
@@ -59,6 +63,49 @@ start:
 	cpx #$04
 	bne *-24
 
+init:
+	sei
+
+	// use all RAM available
+	lda #$35
+	sta $1
+
+	// set dummy irqs
+	lda #<irq_dummy
+	sta $fffa
+	sta $fffc
+	sta $fffe
+	lda #>irq_dummy
+	sta $fffb
+	sta $fffd
+	sta $ffff
+
+	// setup vic stuff
+	lda #$1b
+	sta $d011
+
+	lda #$01
+	sta $d01a
+	// init timers
+	lda #$7f
+	sta $dc0d
+	sta $dd0d
+	lda $dc0d
+	lda $dd0d
+	// purge pending interrupts
+	asl $d019
+
+	cli
+
+	lda #0
+	sta cursor_x
+	sta cursor_y
+
+	lda #<screen
+	sta rowptr + 0
+	lda #>screen
+	sta rowptr + 1
+
 main:
 	jsr Keyboard
 	bcs !done+
@@ -68,14 +115,47 @@ main:
 
 	// mask higher bits just in case to prevent out of bounds access
 	and #$3f
+	cmp #$1f
+	beq !erase+
 	tax
 	lda convert, x // a = convert[x]
-	sta $0400      // poke to screen
+
+	jsr putchar
+
+	//inc $d020
 
 !done:
 	jmp main
 
+!erase:
+	ldy cursor_x
+	dey
+	bpl !+
+	ldy #39
+!:
+	lda #0
+	sta (rowptr),y
+
+	sty cursor_x
+	jmp main
+
 	rts
+
+putchar:
+	ldy cursor_x
+	sta (rowptr),y
+
+	iny
+	cpy #40
+	bmi !+
+	ldy #0
+!:
+	sty cursor_x
+	rts
+
+irq_dummy:
+	asl $d019 // acknowledge interrupt
+	rti
 
 convert:
 	.byte 0, $8f, 0, 0, 0, $bf, 0, 0

@@ -1,5 +1,10 @@
 #importonce
 
+.const cursor_x = $03
+.const cursor_y = $04
+
+.const rowptr = $05
+
 /*** KEYBOARD DRIVER. DO NOT CHANGE ***/
 
 .const ScanResult       = $50  // 8 bytes
