@@ -116,11 +116,21 @@ main:
 	// mask higher bits just in case to prevent out of bounds access
 	and #$3f
 	cmp #$1f
-	beq !erase+
+	// if not found, acc will be zero. if zero, check for consonant
 	tax
-	lda convert, x // a = convert[x]
+	lda tbl_aieuo, x // a = tbl_aieuo[x]
+
+	beq !consonant+
 
 	jsr putchar
+	jmp main
+
+!consonant:
+	lda tbl_consonant, x
+	beq !erase+
+
+	jsr putchar
+	jmp main
 
 	//inc $d020
 
@@ -131,7 +141,7 @@ main:
 	ldy cursor_x
 	dey
 	bpl !+
-	ldy #39
+	ldy #40 - 1
 !:
 	lda #0
 	sta (rowptr),y
@@ -157,11 +167,27 @@ irq_dummy:
 	asl $d019 // acknowledge interrupt
 	rti
 
-convert:
+tbl_aieuo:
 	.byte 0, $8f, 0, 0, 0, $bf, 0, 0
 	.byte 0, $9f, 0, 0, 0, 0, 0, $cf
 	.byte 0, 0, 0, 0, 0, $af, 0, 0
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+
+tbl_consonant:
+	// first letters of syllables starting with consonant:
+	//   k s t n h m y r w n
+
+	// alphabetic:
+	//   h k m n r s t w y
+
+	.byte 0, 0, 0, 0, 0, 0, 0, 0
+	.byte $8a, 0, 0, $8e, 0, $89, $8b, 0
+	.byte 0, 0, $87, $8d, $8c, 0, 0, $86
+	.byte 0, $88, 0, 0, 0, 0, 0, 0
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
 	.byte 0, 0, 0, 0, 0, 0, 0, 0
